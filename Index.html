@@ -1,0 +1,430 @@
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>我的厨房｜备菜与做饭规划</title>
+<style>
+:root{--bg:#f6f5f0;--panel:#fff;--ink:#28332d;--muted:#788078;--line:#e7e8e1;--green:#52745e;--green2:#eaf1e9;--danger:#b85b52}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif}
+header{padding:28px max(20px,calc((100% - 1120px)/2));background:#edf1e9;border-bottom:1px solid var(--line)}
+.brand{font-size:25px;font-weight:750}
+.sub{color:var(--muted);margin-top:3px}
+main{max-width:1120px;margin:24px auto;padding:0 18px 60px}
+nav{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px}
+nav button{border:1px solid var(--line);background:#fff;color:var(--muted);padding:10px 16px;border-radius:12px;cursor:pointer}
+nav button.active{background:var(--green);color:white}
+.panel{background:white;border:1px solid var(--line);border-radius:18px;padding:22px;margin-bottom:16px}
+h2{font-size:20px;margin:0 0 5px}
+h3{font-size:16px;margin:0 0 12px}
+.hint,.muted{color:var(--muted);font-size:13px}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.field{display:flex;flex-direction:column;gap:6px;margin-bottom:13px}
+label{font-size:13px;color:#58635b}
+input,textarea{font:inherit;border:1px solid #dfe3da;border-radius:10px;padding:10px 12px;background:white;color:var(--ink);width:100%}
+textarea{min-height:88px;resize:vertical}
+.btn{border:0;border-radius:10px;background:var(--green);color:white;padding:10px 15px;cursor:pointer;font:inherit}
+.btn.secondary{background:var(--green2);color:var(--green)}
+.btn.ghost{background:#f2f3ef;color:#536056}
+.btn.danger{background:#faecea;color:var(--danger)}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.card{border:1px solid var(--line);border-radius:13px;padding:15px;margin:10px 0}
+.card-top{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
+.empty{padding:22px;text-align:center;color:var(--muted);background:#f8f9f6;border-radius:12px}
+.step{border-left:3px solid #b8cbb8;padding:3px 0 12px 14px;margin:10px 0 10px 5px}
+.step strong{display:block}
+.step small{color:var(--muted)}
+.tag{font-size:11px;background:#fff1e5;color:#9b6135;padding:3px 7px;border-radius:6px}
+hr{border:0;border-top:1px solid var(--line);margin:18px 0}
+.notice{padding:12px 14px;border-radius:11px;background:#f7f4e9;color:#75613d;font-size:13px;margin:12px 0}
+.row{display:flex;gap:10px;align-items:center}
+.row>*{flex:1}
+footer{text-align:center;color:#9aa198;font-size:12px;padding:20px}
+@media(max-width:700px){.grid{grid-template-columns:1fr}.panel{padding:17px}header{padding:22px 18px}.brand{font-size:22px}.card-top{display:block}}
+</style>
+</head>
+<body>
+<header>
+<div class="brand">我的厨房</div>
+<div class="sub">从冰箱现有食材，到一顿饭的备菜与烹饪顺序</div>
+</header>
+<main>
+<nav id="nav">
+<button class="active" data-tab="recommend">菜品推荐</button>
+<button data-tab="planner">备菜规划</button>
+<button data-tab="recipes">我的菜谱库</button>
+<button data-tab="kitchen">厨房资料库</button>
+</nav>
+<section id="app"></section>
+</main>
+<footer>第一版数据保存在当前浏览器中。更换浏览器或设备不会自动同步，请定期导出备份。</footer>
+
+<script>
+const KEY='my-kitchen-v1';
+
+const defaults={
+ seasonings:['蒜蓉酱','醋','生抽','酱油','老抽','香油','辣椒酱','蚝油','黑胡椒粉'],
+ staples:['鸡蛋'],
+ tools:[
+  {name:'不粘小煮锅（配木蒸笼）',use:'煮、炖、蒸'},
+  {name:'不粘炒锅',use:'炒菜、煎制'},
+  {name:'大型深锅（带铁蒸屉）',use:'蒸鱼、蒸虾等；默认不安排炒菜'},
+  {name:'茶色玻璃小煮锅（无盖）',use:'小份煮制'},
+  {name:'电饭煲',use:'煮饭、预约煮饭'},
+  {name:'小洗菜盆',use:'一道食材洗一道、处理一道、切一道'}
+ ],
+ recipes:[
+  {
+   id:1,name:'蒜蓉菠菜',category:'清淡菜',servings:2,
+   ingredients:'菠菜 1 把；蒜蓉酱 1-2 勺',
+   prep:'菠菜逐棵清洗，切去根部；沥水。',
+   marinade:'无需腌制。',
+   blanch:'通常可直接炒；若先焯水，沸水下锅约 20-30 秒，捞出沥水。',
+   steps:'1. 炒锅烧热后加少量油。\n2. 放入菠菜，大火翻炒至变软。\n3. 加蒜蓉酱，翻匀；根据口味少量补盐。\n4. 菠菜刚熟即可出锅。',
+   equipment:'不粘炒锅',order:1,
+   notes:'清淡、出锅后容易继续出水，建议临近开饭时制作。'
+  },
+  {
+   id:2,name:'蘑菇炒鸡蛋',category:'清淡菜',servings:2,
+   ingredients:'蘑菇 200g；鸡蛋 2 个；生抽少许',
+   prep:'蘑菇逐个清洗后切片；鸡蛋打散。',
+   marinade:'无需腌制。',
+   blanch:'一般不必焯水；蘑菇洗后充分沥水。',
+   steps:'1. 鸡蛋打散，炒锅加油后炒至刚凝固，盛出。\n2. 锅中补少量油，放蘑菇炒至变软、出水减少。\n3. 加少许生抽调味。\n4. 鸡蛋回锅翻匀，熟透后出锅。',
+   equipment:'不粘炒锅',order:2,
+   notes:'可作为较清淡的一道菜。'
+  },
+  {
+   id:3,name:'洋葱彩椒牛肉',category:'肉菜',servings:2,
+   ingredients:'牛肉片 200g；洋葱半个；彩椒 1 个；生抽、蚝油、黑胡椒粉',
+   prep:'洋葱、彩椒分别清洗后切块；牛肉按包装状态解冻。',
+   marinade:'牛肉片加生抽 1 勺、蚝油半勺、黑胡椒少许和少量淀粉抓匀，冷藏腌制约 15-20 分钟。',
+   blanch:'通常不需要焯水。',
+   steps:'1. 牛肉提前冷藏解冻；不要长时间放在室温解冻。\n2. 炒锅烧热加油，牛肉分散下锅，炒至大部分变色后先盛出。\n3. 放洋葱炒至略透明，再放彩椒翻炒。\n4. 牛肉回锅，按口味补少许生抽或蚝油。\n5. 牛肉完全熟透后出锅。',
+   equipment:'不粘炒锅',order:3,
+   notes:'肉菜安排在清淡菜之后，避免锅具先变得油腻。'
+  }
+ ]
+};
+
+let state=load();
+let tab='recommend';
+let selected=[];
+
+function load(){
+ try{return JSON.parse(localStorage.getItem(KEY))||JSON.parse(JSON.stringify(defaults))}
+ catch(e){return JSON.parse(JSON.stringify(defaults))}
+}
+function save(){localStorage.setItem(KEY,JSON.stringify(state))}
+function esc(s=''){
+ return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))
+}
+function splitLines(s){
+ return (s||'').split(/\n|；|;/).map(x=>x.trim()).filter(Boolean)
+}
+
+document.querySelectorAll('nav button').forEach(b=>{
+ b.addEventListener('click',()=>{
+  tab=b.dataset.tab;
+  render();
+ });
+});
+
+function render(){
+ document.querySelectorAll('nav button').forEach(b=>{
+  b.classList.toggle('active',b.dataset.tab===tab);
+ });
+ const root=document.getElementById('app');
+ root.innerHTML=({
+  recommend:recommendView,
+  planner:plannerView,
+  recipes:recipesView,
+  kitchen:kitchenView
+ }[tab])();
+ bind();
+}
+
+function recommendView(){
+ return `
+ <div class="panel">
+ <h2>菜品推荐</h2>
+ <p class="hint">输入现在有的食材，系统会结合常备调味料和鸡蛋，给出可尝试的菜品方向。</p>
+ <div class="field">
+ <label>现有食材（用逗号或换行分隔）</label>
+ <textarea id="available" placeholder="例如：牛肉、洋葱、彩椒、菠菜、蘑菇"></textarea>
+ </div>
+ <button class="btn" id="getIdeas">根据食材推荐</button>
+ <div id="ideas"></div>
+ </div>`;
+}
+
+function plannerView(){
+ return `
+ <div class="panel">
+ <h2>备菜规划</h2>
+ <p class="hint">输入菜名并加入本顿菜单。已有个人菜谱会优先调用；新菜会先生成可编辑的参考菜谱。</p>
+ <div class="row">
+  <div class="field">
+   <label>菜名</label>
+   <input id="dishName" placeholder="例如：冬瓜毛豆肉末煲">
+  </div>
+  <button class="btn" id="addDish" style="flex:0 0 auto;align-self:flex-start;margin-top:23px">加入菜单</button>
+ </div>
+ <div id="menuList">${menuHTML()}</div>
+ <div class="actions">
+  <button class="btn" id="makePlan">生成整顿饭备菜计划</button>
+  <button class="btn ghost" id="clearMenu">清空本顿菜单</button>
+ </div>
+ <div id="planResult"></div>
+ </div>`;
+}
+
+function menuHTML(){
+ if(!selected.length)return '<div class="empty">还没有加入菜品</div>';
+ return selected.map((n,i)=>`
+ <div class="card card-top">
+  <div><strong>${esc(n)}</strong>
+  <div class="muted">${state.recipes.some(r=>r.name===n)?'已匹配个人菜谱':'新菜：将创建参考菜谱'}</div></div>
+  <button class="btn danger removeDish" data-i="${i}">移除</button>
+ </div>`).join('');
+}
+
+function recipesView(){
+ return `
+ <div class="panel">
+ <div class="card-top">
+  <div><h2>我的菜谱库</h2>
+  <p class="hint">首次出现的新菜可以先建立参考教程，再由你修改并保存。后续同名菜优先使用这里的版本。</p></div>
+  <button class="btn" id="newRecipe">新增菜谱</button>
+ </div>
+ <div id="recipeList">
+ ${state.recipes.length?state.recipes.map(r=>`
+  <div class="card">
+   <div class="card-top">
+    <div><strong>${esc(r.name)}</strong>
+    <div class="muted">${esc(r.category||'未分类')} · ${esc(r.equipment||'未指定厨具')}</div></div>
+    <div class="actions">
+     <button class="btn secondary editRecipe" data-id="${r.id}">编辑</button>
+     <button class="btn danger deleteRecipe" data-id="${r.id}">删除</button>
+    </div>
+   </div>
+   <div class="muted">食材：${esc(r.ingredients)}</div>
+  </div>`).join(''):'<div class="empty">菜谱库还是空的</div>'}
+ </div>
+ </div>
+ <div id="editor"></div>`;
+}
+
+function kitchenView(){
+ return `
+ <div class="panel">
+ <h2>厨房资料库</h2>
+ <p class="hint">这里记录常备调味料、食材和厨具。常备调味料默认可用，但不会强行加入每一道菜。</p>
+ <div class="grid">
+  <div><h3>常备调味料</h3>
+   <div class="field">
+    <textarea id="seasonings">${esc(state.seasonings.join('、'))}</textarea>
+    <small class="muted">用顿号、逗号或换行分隔</small>
+   </div>
+  </div>
+  <div><h3>常备食材</h3>
+   <div class="field"><textarea id="staples">${esc(state.staples.join('、'))}</textarea></div>
+  </div>
+ </div>
+ <hr>
+ <h3>厨具与使用说明</h3>
+ <div id="tools">
+ ${state.tools.map(t=>`
+  <div class="card"><strong>${esc(t.name)}</strong><div class="muted">${esc(t.use)}</div></div>
+ `).join('')}
+ </div>
+ <div class="notice">洗菜习惯：一道食材洗一道、处理一道、切一道，再放到一边；不会安排成“先洗完所有蔬菜再统一切配”。</div>
+ <button class="btn" id="saveKitchen">保存厨房资料</button>
+ </div>`;
+}
+
+function recipeEditor(r={}){
+ return `
+ <div class="panel">
+ <h2>${r.id?'编辑菜谱':'新建参考菜谱'}</h2>
+ <p class="hint">可以按自己的习惯修改。点击保存后，之后同名菜会优先使用此菜谱。</p>
+ <input type="hidden" id="rid" value="${r.id||''}">
+ <div class="grid">
+  <div class="field"><label>菜名</label><input id="rname" value="${esc(r.name||'')}" placeholder="菜名"></div>
+  <div class="field"><label>分类</label><input id="rcat" value="${esc(r.category||'家常菜')}" placeholder="例如：清淡菜、肉菜、汤"></div>
+  <div class="field"><label>份量</label><input id="rserv" value="${esc(r.servings||2)}" type="number" min="1"></div>
+  <div class="field"><label>主要厨具</label><input id="requip" value="${esc(r.equipment||'不粘炒锅')}"></div>
+ </div>
+ <div class="field"><label>食材与用量</label><textarea id="ring">${esc(r.ingredients||'')}</textarea></div>
+ <div class="field"><label>逐项预处理（按一道食材洗、处理、切的顺序写）</label><textarea id="rprep">${esc(r.prep||'')}</textarea></div>
+ <div class="field"><label>腌制说明（调料、用量、时间、保存方式）</label><textarea id="rmar">${esc(r.marinade||'无需腌制。')}</textarea></div>
+ <div class="field"><label>焯水说明（是否需要、冷水/沸水下锅、辅料、时长、焯后处理）</label><textarea id="rblanch">${esc(r.blanch||'无需焯水。')}</textarea></div>
+ <div class="field"><label>详细烹饪步骤（写明调料加入时机、火候和熟度）</label><textarea id="rsteps">${esc(r.steps||'')}</textarea></div>
+ <div class="field"><label>个人备注</label><textarea id="rnotes">${esc(r.notes||'')}</textarea></div>
+ <div class="actions">
+  <button class="btn" id="saveRecipe">保存到我的菜谱库</button>
+  <button class="btn ghost" id="cancelEditor">取消</button>
+ </div>
+ </div>`;
+}
+
+function makeRecipe(name){
+ return {
+  id:Date.now(),name,category:'待确认',servings:2,
+  ingredients:'请补充食材及用量',
+  prep:'按食材逐项处理：洗净一种食材 → 去皮/去蒂等处理 → 切配 → 放到一边，再处理下一种。',
+  marinade:'根据食材决定是否腌制；如需腌制，写明调料、用量、时间，并冷藏。',
+  blanch:'请根据具体食材确认是否焯水；如需焯水，补充冷水/沸水下锅、辅料和时长。',
+  steps:'请补充详细步骤，包括火候、时间，以及每种调料的加入时机。',
+  equipment:'不粘炒锅',order:2,
+  notes:'这是待确认的参考菜谱，请编辑核对后再保存。'
+ };
+}
+
+function bind(){
+ const $=id=>document.getElementById(id);
+
+ if($('getIdeas')){
+  $('getIdeas').onclick=()=>{
+   let items=splitLines($('available').value.replace(/，/g,',').replace(/,/g,'\n'));
+   let all=[...items,...state.staples];
+   let ideas=state.recipes.filter(r=>
+    splitLines(r.ingredients).some(x=>
+     all.some(a=>x.includes(a)||a.includes(x.split(' ')[0]))
+    )
+   );
+   $('ideas').innerHTML=ideas.length?ideas.map(r=>`
+    <div class="card">
+     <strong>${esc(r.name)}</strong>
+     <div class="muted">${esc(r.category)} · 参考食材：${esc(r.ingredients)}</div>
+     <button class="btn secondary pickIdea" data-name="${esc(r.name)}">加入本顿菜单</button>
+    </div>`).join(''):'<div class="notice">暂时没有找到明显匹配的个人菜谱。你可以把食材加入备菜规划，或先在菜谱库建立一道新菜的参考菜谱。推荐逻辑目前是基础食材匹配，后续可以继续增强。</div>';
+   document.querySelectorAll('.pickIdea').forEach(b=>b.onclick=()=>{
+    selected.push(b.dataset.name);tab='planner';render();
+   });
+  };
+ }
+
+ if($('addDish'))$('addDish').onclick=()=>{
+  let n=$('dishName').value.trim();
+  if(!n)return;
+  if(!selected.includes(n))selected.push(n);
+  render();
+ };
+
+ document.querySelectorAll('.removeDish').forEach(b=>b.onclick=()=>{
+  selected.splice(+b.dataset.i,1);render();
+ });
+
+ if($('clearMenu'))$('clearMenu').onclick=()=>{selected=[];render()};
+ if($('makePlan'))$('makePlan').onclick=()=>generatePlan();
+
+ if($('newRecipe'))$('newRecipe').onclick=()=>{
+  $('editor').innerHTML=recipeEditor();bindEditor();
+ };
+
+ document.querySelectorAll('.editRecipe').forEach(b=>b.onclick=()=>{
+  let r=state.recipes.find(x=>x.id==b.dataset.id);
+  $('editor').innerHTML=recipeEditor(r);bindEditor();
+ });
+
+ document.querySelectorAll('.deleteRecipe').forEach(b=>b.onclick=()=>{
+  if(confirm('确定删除这道菜谱吗？')){
+   state.recipes=state.recipes.filter(x=>x.id!=b.dataset.id);
+   save();render();
+  }
+ });
+
+ if($('saveKitchen'))$('saveKitchen').onclick=()=>{
+  state.seasonings=splitLines($('seasonings').value.replace(/[，,、]/g,'\n'));
+  state.staples=splitLines($('staples').value.replace(/[，,、]/g,'\n'));
+  save();alert('厨房资料已保存在当前浏览器。');
+ };
+}
+
+function bindEditor(){
+ const $=id=>document.getElementById(id);
+ $('cancelEditor').onclick=()=>{$('editor').innerHTML=''};
+ $('saveRecipe').onclick=()=>{
+  let name=$('rname').value.trim();
+  if(!name){alert('请填写菜名');return}
+  let id=$('rid').value;
+  let r={
+   id:id?+id:Date.now(),name,
+   category:$('rcat').value,
+   servings:+$('rserv').value||2,
+   equipment:$('requip').value,
+   ingredients:$('ring').value,
+   prep:$('rprep').value,
+   marinade:$('rmar').value,
+   blanch:$('rblanch').value,
+   steps:$('rsteps').value,
+   notes:$('rnotes').value,
+   order:/肉|牛|猪|鸡|鱼|虾/.test(name)?3:1
+  };
+  let i=state.recipes.findIndex(x=>x.id==r.id);
+  if(i>=0)state.recipes[i]=r;
+  else state.recipes.push(r);
+  save();render();
+ };
+}
+
+function generatePlan(){
+ const out=document.getElementById('planResult');
+ if(!selected.length){
+  out.innerHTML='<div class="notice">请先加入至少一道菜。</div>';return;
+ }
+
+ let list=selected.map(n=>state.recipes.find(r=>r.name===n)||makeRecipe(n));
+ list.sort((a,b)=>(a.order||2)-(b.order||2));
+
+ out.innerHTML=`
+ <hr><h3>本顿饭备菜与烹饪安排</h3>
+ <div class="notice">以下是根据个人菜谱整理的初步计划。新菜尚未确认的步骤会标为待补充；请先核对食材状态、用量和熟度要求。</div>
+ <div class="card">
+  <strong>第一阶段｜准备与预处理</strong>
+  ${list.map((r,i)=>`
+   <div class="step">
+    <strong>${i+1}. ${esc(r.name)}：逐项清洗与切配</strong>
+    <div>${esc(r.prep)}</div>
+   </div>`).join('')}
+  ${list.map(r=>`
+   <div class="step">
+    <strong>${esc(r.name)}：腌制 / 解冻</strong>
+    <div>${esc(r.marinade)}</div>
+    <small>若使用冷冻肉类，优先提前放入冰箱冷藏室解冻，并用容器承接汁液；不要长时间放在室温下解冻。</small>
+   </div>`).join('')}
+  ${list.map(r=>`
+   <div class="step">
+    <strong>${esc(r.name)}：焯水检查</strong>
+    <div>${esc(r.blanch)}</div>
+   </div>`).join('')}
+ </div>
+ <div class="card">
+  <strong>第二阶段｜烹饪顺序</strong>
+  <p class="muted">默认先做清淡、较不易弄脏锅具的菜，再做肉类或容易粘锅、油腻的菜；同时要考虑出锅后是否容易变色、出水或放凉。</p>
+  ${list.map((r,i)=>`
+   <div class="step">
+    <strong>${i+1}. ${esc(r.name)} <span class="tag">${i===list.length-1?'后段制作':'优先制作'}</span></strong>
+    <small>建议厨具：${esc(r.equipment||'请确认厨具')}</small>
+    <div style="white-space:pre-line;margin-top:6px">${esc(r.steps)}</div>
+   </div>`).join('')}
+ </div>
+ <div class="actions">
+  <button class="btn secondary" id="saveNewRecipes">将本次新菜保存为待编辑菜谱</button>
+ </div>`;
+
+ document.getElementById('saveNewRecipes').onclick=()=>{
+  list.forEach(r=>{
+   if(!state.recipes.some(x=>x.name===r.name))state.recipes.push(r);
+  });
+  save();alert('已保存。可以到“我的菜谱库”继续编辑完善。');
+ };
+}
+
+render();
+</script>
+</body>
+</html>
